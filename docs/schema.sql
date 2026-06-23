@@ -4,44 +4,92 @@
 -- Version 1.0
 -- =====================================================
 
--- Files Table
+PRAGMA foreign_keys = ON;
 
-CREATE TABLE files (
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-filename TEXT NOT NULL,
-upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-status TEXT NOT NULL
-);
+-- =====================================================
+-- FILES
+-- Stores uploaded syllabus PDFs
+-- =====================================================
 
--- Subjects Table
-
-CREATE TABLE subjects (
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-file_id INTEGER NOT NULL,
-subject_name TEXT NOT NULL,
-FOREIGN KEY (file_id) REFERENCES files(id)
-);
-
--- Units Table
-
-CREATE TABLE units (
-id INTEGER PRIMARY KEY AUTOINCREMENT,
-subject_id INTEGER NOT NULL,
-unit_name TEXT NOT NULL,
-FOREIGN KEY (subject_id) REFERENCES subjects(id)
+CREATE TABLE IF NOT EXISTS files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL
 );
 
 -- =====================================================
--- ChromaDB Metadata Mapping
+-- SUBJECTS
+-- Extracted subjects from syllabus
 -- =====================================================
---------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS subjects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL,
+    subject_name TEXT NOT NULL,
+
+    FOREIGN KEY (file_id)
+        REFERENCES files(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
+-- UNITS
+-- Units belonging to a subject
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS units (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subject_id INTEGER NOT NULL,
+    unit_name TEXT NOT NULL,
+
+    FOREIGN KEY (subject_id)
+        REFERENCES subjects(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
+-- CHUNKS (Metadata Mirror)
+--
+-- Actual chunk content and embeddings live in ChromaDB.
+-- This table stores references for backend tracking.
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    file_id INTEGER NOT NULL,
+    subject_id INTEGER NOT NULL,
+    unit_id INTEGER NOT NULL,
+
+    chunk_id TEXT NOT NULL,
+    source_file TEXT NOT NULL,
+    page_number INTEGER,
+
+    FOREIGN KEY (file_id)
+        REFERENCES files(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (subject_id)
+        REFERENCES subjects(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (unit_id)
+        REFERENCES units(id)
+        ON DELETE CASCADE
+);
+
+-- =====================================================
+-- ChromaDB Design Reference
+-- =====================================================
 
 -- Collection Name:
 -- notes_chunks
----------------
 
-## -- Metadata Stored:
+-- Embedding Model:
+-- sentence-transformers/all-MiniLM-L6-v2
 
+-- Metadata Stored:
 -- user_id
 -- file_id
 -- subject
@@ -49,35 +97,17 @@ FOREIGN KEY (subject_id) REFERENCES subjects(id)
 -- source_file
 -- unit
 -- page_number
---------------
 
-## -- Example:
-
--- {
---   "user_id":"u001",
---   "file_id":"f001",
---   "subject":"Operating Systems",
---   "chunk_id":"chunk_102",
---   "source_file":"os_notes.pdf",
---   "unit":"Unit 3",
---   "page_number":14
+-- Retrieval Example:
+--
+-- query = "Explain paging"
+--
+-- filter = {
+--   "user_id": "u001"
 -- }
-----
 
--- Embedding Model:
--- sentence-transformers/all-MiniLM-L6-v2
------------------------------------------
-
--- Collection Strategy:
+-- Strategy:
 -- Single Global Collection
--- Collection Name: notes_chunks
---------------------------------
 
--- Filtering:
--- user_id
--- file_id
--- subject
--- unit
--------
-
--- Design Status: LOCKED
+-- Status:
+-- LOCKED
