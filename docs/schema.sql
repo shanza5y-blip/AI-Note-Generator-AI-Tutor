@@ -8,7 +8,6 @@ PRAGMA foreign_keys = ON;
 
 -- =====================================================
 -- FILES
--- Stores uploaded syllabus PDFs
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS files (
@@ -20,7 +19,6 @@ CREATE TABLE IF NOT EXISTS files (
 
 -- =====================================================
 -- SUBJECTS
--- Extracted subjects from syllabus
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS subjects (
@@ -35,7 +33,6 @@ CREATE TABLE IF NOT EXISTS subjects (
 
 -- =====================================================
 -- UNITS
--- Units belonging to a subject
 -- =====================================================
 
 CREATE TABLE IF NOT EXISTS units (
@@ -45,37 +42,6 @@ CREATE TABLE IF NOT EXISTS units (
 
     FOREIGN KEY (subject_id)
         REFERENCES subjects(id)
-        ON DELETE CASCADE
-);
-
--- =====================================================
--- CHUNKS (Metadata Mirror)
---
--- Actual chunk content and embeddings live in ChromaDB.
--- This table stores references for backend tracking.
--- =====================================================
-
-CREATE TABLE IF NOT EXISTS chunks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    file_id INTEGER NOT NULL,
-    subject_id INTEGER NOT NULL,
-    unit_id INTEGER NOT NULL,
-
-    chunk_id TEXT NOT NULL,
-    source_file TEXT NOT NULL,
-    page_number INTEGER,
-
-    FOREIGN KEY (file_id)
-        REFERENCES files(id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (subject_id)
-        REFERENCES subjects(id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (unit_id)
-        REFERENCES units(id)
         ON DELETE CASCADE
 );
 
@@ -97,14 +63,6 @@ CREATE TABLE IF NOT EXISTS chunks (
 -- source_file
 -- unit
 -- page_number
-
--- Retrieval Example:
---
--- query = "Explain paging"
---
--- filter = {
---   "user_id": "u001"
--- }
 
 -- Strategy:
 -- Single Global Collection
