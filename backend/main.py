@@ -1,10 +1,12 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel
 from PyPDF2 import PdfReader
 from parser import extract_pdf_text, parse_syllabus
 from datetime import datetime
 from ingest import ingest_file
+from note_generator import generate_notes
 import asyncio
 import sqlite3
 import os
@@ -22,13 +24,25 @@ def root():
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 DB_NAME = "database.db"
+
+
+from typing import Literal
+
+class GenerateNotesRequest(BaseModel):
+    file_id: int
+    subject: str
+    unit_name: str
+    note_type: Literal["detailed", "exam", "revision"]
 
 
 @app.get("/health")
@@ -115,13 +129,7 @@ async def upload_notes(file: UploadFile = File(...)):
 
         print("PARSED DATA:")
         print(json.dumps(parsed_data, indent=2))
-        asyncio.create_task(
-            asyncio.to_thread(
-                ingest_file,
-                file_id,
-                parsed_data
-            )
-        )
+
         # Database
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -140,7 +148,13 @@ async def upload_notes(file: UploadFile = File(...)):
             )
         )
         conn.commit()
-
+        asyncio.create_task(
+            asyncio.to_thread(
+                ingest_file,
+                file_id,
+                parsed_data
+            )
+        )
         conn.close()
 
         return {
@@ -200,4 +214,69 @@ def get_subjects(file_id: int):
         "data": json.loads(row[1])
         if row[1]
         else None
+    }
+
+
+@app.post("/generate-notes")
+async def generate_notes_endpoint(request: GenerateNotesRequest):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Check file exists
+    cursor.execute(
+        "SELECT id FROM files WHERE id=?",
+        (request.file_id,)
+    )
+
+    file = cursor.fetchone()
+
+    if not file:
+        conn.close()
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    # Call Intern 2's function
+    result = await asyncio.to_thread(
+        generate_notes,
+        request.file_id,
+        request.unit_name,
+        request.note_type
+    )
+
+    generated_at = datetime.utcnow().isoformat()
+
+    # Log generation
+    cursor.execute(
+        """
+        INSERT INTO generation_log
+        (
+            file_id,
+            unit_name,
+            note_type,
+            generated_at,
+            token_count
+        )
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            request.file_id,
+            request.unit_name,
+            request.note_type,
+            generated_at,
+            None
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "note_type": request.note_type,
+        "unit_name": request.unit_name,
+        "content": result["content"],
+        "warning": result["warning"],
+        "generated_at": generated_at
     }
