@@ -3,12 +3,15 @@ import sqlite3
 conn = sqlite3.connect("database.db")
 cursor = conn.cursor()
 
-cursor.execute("DELETE FROM files")
+cursor.execute("""
+SELECT name
+FROM sqlite_master
+WHERE type='table';
+""")
 
-# Reset auto-increment counter
-cursor.execute("DELETE FROM sqlite_sequence WHERE name='files'")
+tables = cursor.fetchall()
 
-conn.commit()
+print("Tables found:")
+print(tables)
+
 conn.close()
-
-print("Database cleared successfully")
