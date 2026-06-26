@@ -16,13 +16,15 @@ function App() {
 
   const [selectedSubject, setSelectedSubject] =
     useState(null);
+  const [fileId, setFileId] = useState(null);
 
   const handleLogin = () => {
     setPage("upload");
   };
 
-  const handleUpload = (fileData) => {
-    setUploadedFile(fileData);
+  const handleUpload = (file, fileIdFromBackend) => {
+    setUploadedFile(file);
+    setFileId(fileIdFromBackend);
     setPage("subjects");
   };
 
@@ -118,6 +120,7 @@ function App() {
       {/* Subject Browser */}
       {page === "subjects" && (
         <SubjectBrowserPage
+          fileId={fileId}
           onSelect={handleSubjectSelect}
         />
       )}
@@ -125,6 +128,7 @@ function App() {
       {/* Note Viewer */}
       {page === "notes" && (
         <NoteViewerPage
+          fileId={fileId}
           selectedSubject={selectedSubject}
         />
       )}
