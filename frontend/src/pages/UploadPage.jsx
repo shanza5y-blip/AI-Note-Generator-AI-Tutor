@@ -46,42 +46,69 @@ const UploadPage = ({ onViewNotes }) => {
   };
 
   const generateNotes = async () => {
-    if (!file) return;
+  if (!file) return;
+  setLoading(true);
 
-    setLoading(true);
+  try {
+    // Step 1 — Upload PDF and get file_id
+    const formData = new FormData();
+    formData.append("file", file);
 
-    try {
-      const formData = new FormData();
-
-      formData.append("file", file);
-      formData.append("unit", unit);
-      formData.append("chapter", chapter);
-      formData.append("module", module);
-      formData.append("noteType", noteType);
-
-      const response = await fetch(
-        "http://localhost:8000/generate-notes",
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-
-      const data = await response.json();
-
-      setGeneratedNotes(data.notes);
-
-      if (onViewNotes) {
-        onViewNotes(data.notes);
+    const uploadResponse = await fetch(
+      "http://localhost:8000/upload-syllabus",
+      {
+        method: "POST",
+        body: formData
       }
-    } catch (error) {
-      console.error(error);
+    );
 
-      alert("Failed to generate notes");
+    const uploadData = await uploadResponse.json();
+
+    if (!uploadResponse.ok) {
+      alert("Upload failed: " + uploadData.detail);
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-  };
+    const file_id = uploadData.file_id;
+    const subject = uploadData.subject;
+    const modules = uploadData.modules;
+
+    // Step 2 — Generate notes
+    const notesResponse = await fetch(
+      "http://localhost:8000/generate-notes",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_id: file_id,
+          subject: subject,
+          module_name: module || modules[0],
+          note_type: noteType === "quick" ? "revision" : noteType
+        })
+      }
+    );
+
+    const notesData = await notesResponse.json();
+
+    setGeneratedNotes(notesData.content);
+
+    if (onViewNotes) {
+      onViewNotes({
+        file_id: file_id,
+        name: subject,
+        units: modules,
+        notes: notesData.content
+      });
+    }
+
+  } catch (error) {
+    console.error(error);
+    alert("Failed to generate notes");
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="upload-page">
