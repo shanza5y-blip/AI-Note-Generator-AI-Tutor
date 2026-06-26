@@ -42,28 +42,31 @@ def parse_syllabus(text):
 
     syllabus_text = syllabus_match.group(1) if syllabus_match else text
 
-    units = []
+    modules = []
+
+    
 
     module_pattern = (
         r"(?m)^([1-4])\s+(.+?)(?=\n[1-4]\s+|\Z)"
     )
 
-    modules = re.findall(
+    matches = re.findall(
         module_pattern,
         syllabus_text,
         re.DOTALL
     )
 
-    for module_no, content in modules:
+    for module_no, content in matches:
 
         title = content.split("[Text")[0].strip()
 
-        units.append({
-            "unit_name": f"Module {module_no}",
-            "chapters": [title]
+        modules.append({
+            "module_name": f"Module {module_no}",
+            "topics": [title]
         })
 
     return {
         "subject": subject,
-        "units": units
+        "modules": modules
     }
+

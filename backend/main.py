@@ -1,12 +1,13 @@
+from typing import Literal
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from PyPDF2 import PdfReader
-from parser import extract_pdf_text, parse_syllabus
+from backend.parser import extract_pdf_text, parse_syllabus
 from datetime import datetime
-from ingest import ingest_file
-from note_generator import generate_notes
+from rag.ingest import ingest_file
+from rag.note_generator import generate_notes
 import asyncio
 import sqlite3
 import os
@@ -25,23 +26,21 @@ def root():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
+        "http://localhost:5173",  # Ayisha's Vite React app
+        "http://localhost:3000",  # fallback just in case
+        "http://localhost:3001",  # what Shanza had before
     ],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-DB_NAME = "database.db"
+import os
+DB_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.db")
 
-
-from typing import Literal
 
 class GenerateNotesRequest(BaseModel):
     file_id: int
-    subject: str
-    unit_name: str
+    module_name: str
     note_type: Literal["detailed", "exam", "revision"]
 
 
@@ -130,16 +129,41 @@ async def upload_notes(file: UploadFile = File(...)):
         print("PARSED DATA:")
         print(json.dumps(parsed_data, indent=2))
 
-        # Database
-        conn = sqlite3.connect(DB_NAME)
-        cursor = conn.cursor()
+        # Save subject
+        cursor.execute(
+            """
+            INSERT INTO subjects(file_id, subject_name)
+            VALUES (?, ?)
+            """,
+            (
+                file_id,
+                parsed_data["subject"]
+            )
+        )
 
+        subject_id = cursor.lastrowid
+
+        # Save modules
+        for module in parsed_data["modules"]:
+            cursor.execute(
+                """
+                INSERT INTO units(subject_id, unit_name)
+                VALUES (?, ?)
+                """,
+                (
+                    subject_id,
+                    module["module_name"]
+                )
+            )
+
+        # Update uploaded file
         cursor.execute(
             """
             UPDATE files
-            SET status = ?,
-                parsed_json = ?
-            WHERE id = ?
+            SET
+                status=?,
+                parsed_json=?
+            WHERE id=?
             """,
             (
                 "completed",
@@ -147,6 +171,7 @@ async def upload_notes(file: UploadFile = File(...)):
                 file_id
             )
         )
+
         conn.commit()
         asyncio.create_task(
             asyncio.to_thread(
@@ -162,7 +187,11 @@ async def upload_notes(file: UploadFile = File(...)):
             "filename": file.filename,
             "page_count": page_count,
             "status": "completed",
-            "subject_url": f"/subjects/{file_id}"
+            "subject": parsed_data["subject"],
+            "modules": [
+                module["module_name"]
+                for module in parsed_data["modules"]
+            ]
         }
 
     except HTTPException:
@@ -174,47 +203,6 @@ async def upload_notes(file: UploadFile = File(...)):
             status_code=400,
             detail=f"PDF processing failed: {str(e)}"
         )
-
-
-@app.get("/subjects/{file_id}")
-def get_subjects(file_id: int):
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT
-            status,
-            parsed_json
-        FROM files
-        WHERE id = ?
-        """,
-        (file_id,)
-    )
-
-    row = cursor.fetchone()
-
-    conn.close()
-
-    if not row:
-        raise HTTPException(
-            status_code=404,
-            detail="File not found"
-        )
-    if row[0] == "processing":
-
-        return {
-            "file_id": file_id,
-            "status": "processing"
-        }
-    return {
-        "file_id": file_id,
-        "status": row[0],
-        "data": json.loads(row[1])
-        if row[1]
-        else None
-    }
 
 
 @app.post("/generate-notes")
@@ -242,7 +230,7 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
     result = await asyncio.to_thread(
         generate_notes,
         request.file_id,
-        request.unit_name,
+        request.module_name,
         request.note_type
     )
 
@@ -251,10 +239,10 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
     # Log generation
     cursor.execute(
         """
-        INSERT INTO generation_log
+    INSERT INTO generation_log
         (
             file_id,
-            unit_name,
+            module_name,
             note_type,
             generated_at,
             token_count
@@ -263,7 +251,7 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
         """,
         (
             request.file_id,
-            request.unit_name,
+            request.module_name,
             request.note_type,
             generated_at,
             None
@@ -275,7 +263,7 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
 
     return {
         "note_type": request.note_type,
-        "unit_name": request.unit_name,
+        "module_name": request.module_name,
         "content": result["content"],
         "warning": result["warning"],
         "generated_at": generated_at

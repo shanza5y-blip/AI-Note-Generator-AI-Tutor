@@ -10,11 +10,14 @@ PRAGMA foreign_keys = ON;
 -- FILES
 -- =====================================================
 
+
+
 CREATE TABLE IF NOT EXISTS files (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL,
     upload_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    parsed_json TEXT
 );
 
 -- =====================================================
@@ -42,6 +45,22 @@ CREATE TABLE IF NOT EXISTS units (
 
     FOREIGN KEY (subject_id)
         REFERENCES subjects(id)
+        ON DELETE CASCADE
+);
+-- =====================================================
+-- GENERATION LOG
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS generation_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL,
+    module_name TEXT NOT NULL,
+    note_type TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    token_count INTEGER,
+
+    FOREIGN KEY (file_id)
+        REFERENCES files(id)
         ON DELETE CASCADE
 );
 
