@@ -1,9 +1,13 @@
 PROMPTS = {
 
-    "detailed": """
+    "detailed explanation": """
 You are a study note generator.
 
-Using ONLY the following syllabus content,
+Using ONLY the syllabus topics below, expand them into study notes suitable for KTU B.Tech students.
+
+Do not introduce unrelated topics.
+
+Explain every listed topic clearly.,
 write comprehensive structured notes for the unit.
 
 Cover:
@@ -13,13 +17,13 @@ Cover:
 - Important ideas
 
 Unit:
-{unit_name}
+{module_name}
 
 Content:
 {context}
 """,
 
-    "exam": """
+    "exam oriented": """
 Write concise exam-focused notes.
 
 Requirements:
@@ -29,13 +33,13 @@ Requirements:
 - Include formulas if present
 
 Unit:
-{unit_name}
+{module_name}
 
 Content:
 {context}
 """,
 
-    "revision": """
+    "quick revision": """
 Write a quick revision summary.
 
 Requirements:
@@ -45,7 +49,7 @@ Requirements:
 - Fast review style
 
 Unit:
-{unit_name}
+{module_name}
 
 Content:
 {context}

@@ -1,6 +1,5 @@
 import chromadb
 import ollama
-
 from prompt_templates import PROMPTS
 
 # -----------------------------
@@ -19,26 +18,23 @@ collection = client.get_collection(
 # Retrieve Chunks
 # -----------------------------
 
-def retrieve_chunks(file_id, unit_name):
+def retrieve_chunks(file_id,module_name):
 
     try:
-        results = collection.get(
-            where={
-                "$and": [
-                    {"file_id": file_id},
-                    {"unit_name": unit_name}
-                ]
-            }
+        results = collection.query(
+            query_texts=["Generate notes"],
+            n_results=5,
+            where={"$and": [
+            {"file_id": file_id},
+            {"module_name": module_name}]}
         )
 
-        docs = results.get("documents", [])
-
+        docs = results.get("documents", [[]])[0]
         return docs[:5]
 
     except Exception as e:
         print("Retrieval Error:", e)
         return []
-
 
 # -----------------------------
 # Grounding Check
@@ -55,7 +51,6 @@ def grounding_check(chunks):
         return True
 
     return False
-
 
 # -----------------------------
 # Ollama Call
@@ -75,41 +70,35 @@ def call_ollama(prompt):
 
     return response["message"]["content"]
 
-
 # -----------------------------
-# Generate Notes
+# Generate Notes (FIXED)
 # -----------------------------
 
-def generate_notes(
-    file_id,
-    unit_name,
-    note_type
-):
+def generate_notes(file_id,module_name, note_type):
 
-    chunks = retrieve_chunks(
-        file_id,
-        unit_name
-    )
+    print("\n[STEP] Retrieving chunks...")
 
-    print("\nRetrieved Chunks:", len(chunks))
+    chunks = retrieve_chunks(file_id,module_name)
+
+    print("Retrieved Chunks:", len(chunks))
 
     # No chunks found
     if len(chunks) == 0:
         return {
             "content": "",
-            "warning": (
-                f"No content found for "
-                f"file_id='{file_id}' "
-                f"and unit_name='{unit_name}'"
-            )
+            "warning": f"No content found for file_id='{file_id}' and module_name='{module_name}'"
         }
 
     context = "\n\n".join(chunks)
 
-    prompt = PROMPTS[note_type].format(
-        unit_name=unit_name,
+    print("[STEP] Building prompt...")
+
+    prompt = PROMPTS["detailed explanation"].format(
+        module_name=module_name,
         context=context
     )
+
+    print("[STEP] Calling LLM...")
 
     notes = call_ollama(prompt)
 
@@ -119,13 +108,9 @@ def generate_notes(
     }
 
     if grounding_check(chunks):
-        result["warning"] = (
-            "Low context — syllabus content "
-            "for this unit may be sparse."
-        )
+        result["warning"] = "Low context — syllabus content for this unit may be sparse."
 
     return result
-
 
 # -----------------------------
 # Direct Test
@@ -134,9 +119,9 @@ def generate_notes(
 if __name__ == "__main__":
 
     result = generate_notes(
-        file_id="syllabus_001",
-        unit_name="Course Syllabus",
-        note_type="detailed"
+        "syllabus_001",
+        "module 4",
+        "detailed"
     )
 
     print("\nWARNING:")

@@ -8,7 +8,7 @@ def test_ingestion_runs():
 
         "units": [
             {
-                "unit_name": "RAG",
+                "module_name": "RAG",
 
                 "content":
                 "Retrieval Augmented Generation." * 100

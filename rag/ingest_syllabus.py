@@ -18,7 +18,7 @@ embed_and_store(
     chunks=chunks,
     file_id="syllabus_001",
     subject="AI",
-    unit_name="Course Syllabus"
+    module_name="Course Syllabus"
 )
 
 print("5. Syllabus stored successfully")

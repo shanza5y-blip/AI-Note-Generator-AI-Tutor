@@ -1,33 +1,49 @@
-import chromadb
-from sentence_transformers import SentenceTransformer
-import ollama
+from vector_store import get_embedding, query_chunks
+import requests
 
-model = SentenceTransformer(
-    "sentence-transformers/all-MiniLM-L6-v2"
-)
-
-client = chromadb.PersistentClient(path="./chroma_db")
-collection = client.get_collection("notes_chunks")
-
-
-def retrieve(question):
-    emb = model.encode([question])
-
-    results = collection.query(
-        query_embeddings=emb.tolist(),
-        n_results=2
+# -----------------------------
+# LLM CALL (Ollama)
+# -----------------------------
+def call_llm(prompt):
+    response = requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model": "llama3.1:8b",
+            "prompt": prompt,
+            "stream": False
+        }
     )
 
-    docs = results["documents"][0]
-
-    return "\n\n".join(docs)
+    return response.json()["response"]
 
 
-def answer(question):
-    context = retrieve(question)
+# -----------------------------
+# MAIN RAG FUNCTION
+# -----------------------------
+def answer_question(question, file_id):
+
+    print("\n[STEP 1] Creating embedding for question...")
+
+    question_embedding = get_embedding(question)
+
+    print("[STEP 2] Retrieving relevant chunks...")
+
+    chunks = query_chunks(
+        question_embedding,
+        file_id=file_id
+    )
+
+    if not chunks:
+        return "No relevant context found in database."
+
+    print("[STEP 3] Building prompt...")
+
+    context = "\n\n".join(chunks)
 
     prompt = f"""
-Answer ONLY using the provided context.
+You are an AI tutor.
+
+Use ONLY the context below to answer the question.
 
 Context:
 {context}
@@ -35,29 +51,16 @@ Context:
 Question:
 {question}
 
-Answer:
+If the answer is not present in the context, reply:
+'I couldn't find that information in the uploaded syllabus.'
+
+Answer clearly.
 """
 
-    response = ollama.chat(
-        model="llama3.1:8b",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    print("[STEP 4] Generating answer...")
 
-    return response["message"]["content"]
+    answer = call_llm(prompt)
 
+    print("[SUCCESS] Answer generated")
 
-questions = [
-    "What textbook is required for this course?",
-    "What percentage is the final examination worth?",
-    "What topics are covered in Unit 5?"
-]
-
-for q in questions:
-    print("\nQUESTION:", q)
-    print("\nANSWER:")
-    print(answer(q))
+    return answer
