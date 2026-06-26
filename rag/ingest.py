@@ -1,7 +1,7 @@
 import uuid
-from parser import extract_pdf_text
-from chunker import chunk_text
-from vector_store import add_documents
+from backend.parser import extract_pdf_text
+from rag.chunker import chunk_text
+from rag.vector_store import add_documents
 
 
 def ingest_file(file_id, parsed_structure):

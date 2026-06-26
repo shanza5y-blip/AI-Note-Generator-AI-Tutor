@@ -1,6 +1,6 @@
 import chromadb
 import ollama
-from prompt_templates import PROMPTS
+from rag.prompt_templates import PROMPTS
 
 # -----------------------------
 # ChromaDB Connection
