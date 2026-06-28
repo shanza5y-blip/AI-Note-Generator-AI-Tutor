@@ -1,9 +1,7 @@
 import uuid
 import json
 from parser import extract_pdf_text, parse_syllabus
-from chunker import chunk_text
 from vector_store import add_documents
-
 
 COLLECTION_NAME = "notes_chunks"
 
@@ -19,11 +17,9 @@ def ingest_file(file_id, parsed_structure):
         module_name = module["module_name"]
 
         for topic in module["topics"]:
+            text = f"{module_name} | {topic} | {subject}"
 
-            all_texts.append(
-                f"{topic} is a topic in {module_name} of {subject}. It covers key concepts in Computer Networks."
-            )
-
+            all_texts.append(text)
             all_metadatas.append({
                 "file_id": file_id,
                 "subject": subject,
@@ -37,27 +33,20 @@ def ingest_file(file_id, parsed_structure):
         collection_name=COLLECTION_NAME
     )
 
-    print("Ingestion Complete")
+    print("[SUCCESS] Ingestion Complete")
 
 
-def ingest_pdf(file_path: str) -> str:
+def ingest_pdf(file_path: str):
     file_id = str(uuid.uuid4())
 
-    # STEP 1: Extract text
     text = extract_pdf_text(file_path)
-
-    # STEP 2: Convert text → structured syllabus
     parsed = parse_syllabus(text)
 
-    # STEP 3: Ingest structured data
     ingest_file(file_id, parsed)
 
     print(json.dumps(parsed, indent=2))
 
-    return file_id
-
 
 if __name__ == "__main__":
     file_path = r"C:\Users\Jumana\OneDrive\project\rag\Syllabus.pdf"
-
     ingest_pdf(file_path)
