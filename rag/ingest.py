@@ -1,5 +1,6 @@
 import uuid
-from parser import extract_pdf_text
+import json
+from parser import extract_pdf_text, parse_syllabus
 from chunker import chunk_text
 from vector_store import add_documents
 
@@ -19,9 +20,9 @@ def ingest_file(file_id, parsed_structure):
 
         for topic in module["topics"]:
 
-            # FIX 1: better chunking (each topic becomes a chunk)
-            all_texts.append(f"{topic} is a topic in {module_name} of {subject}. It covers key concepts in Computer Networks."
-)
+            all_texts.append(
+                f"{topic} is a topic in {module_name} of {subject}. It covers key concepts in Computer Networks."
+            )
 
             all_metadatas.append({
                 "file_id": file_id,
@@ -30,7 +31,6 @@ def ingest_file(file_id, parsed_structure):
                 "topic": topic
             })
 
-    # FIX 2: single batch insert (faster + safer)
     add_documents(
         texts=all_texts,
         metadatas=all_metadatas,
@@ -43,41 +43,21 @@ def ingest_file(file_id, parsed_structure):
 def ingest_pdf(file_path: str) -> str:
     file_id = str(uuid.uuid4())
 
+    # STEP 1: Extract text
     text = extract_pdf_text(file_path)
-    chunks = chunk_text(text)
 
-    # FIX 3: consistent metadata (IMPORTANT)
-    add_documents(
-        texts=chunks,
-        metadatas=[
-            {
-                "file_id": file_id,
-                "subject": "Unknown",
-                "module_name": "Unknown",
-                "topic": "Unknown"
-            }
-            for _ in chunks
-        ],
-        collection_name=COLLECTION_NAME
-    )
+    # STEP 2: Convert text → structured syllabus
+    parsed = parse_syllabus(text)
+
+    # STEP 3: Ingest structured data
+    ingest_file(file_id, parsed)
+
+    print(json.dumps(parsed, indent=2))
 
     return file_id
 
 
 if __name__ == "__main__":
+    file_path = r"C:\Users\Jumana\OneDrive\project\rag\Syllabus.pdf"
 
-    parsed = {
-        "subject": "Computer Networks",
-        "modules": [
-            {
-                "module_name": "Module 4",
-                "topics": [
-                    "Routing Algorithms",
-                    "Distance Vector Routing",
-                    "Link State Routing"
-                ]
-            }
-        ]
-    }
-
-    ingest_file("syllabus_001", parsed)
+    ingest_pdf(file_path)
