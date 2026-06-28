@@ -34,19 +34,7 @@ CREATE TABLE IF NOT EXISTS subjects (
         ON DELETE CASCADE
 );
 
--- =====================================================
--- UNITS
--- =====================================================
 
-CREATE TABLE IF NOT EXISTS units (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    subject_id INTEGER NOT NULL,
-    unit_name TEXT NOT NULL,
-
-    FOREIGN KEY (subject_id)
-        REFERENCES subjects(id)
-        ON DELETE CASCADE
-);
 -- =====================================================
 -- GENERATION LOG
 -- =====================================================
@@ -62,6 +50,15 @@ CREATE TABLE IF NOT EXISTS generation_log (
     FOREIGN KEY (file_id)
         REFERENCES files(id)
         ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS chat_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(file_id) REFERENCES files(id)
 );
 
 -- =====================================================
