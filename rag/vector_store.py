@@ -131,3 +131,6 @@ def debug_collection():
     sample = collection.get(limit=5)
 
     print(sample)
+if __name__ == "__main__":
+    print("Total chunks:", collection.count())
+    print(collection.get())

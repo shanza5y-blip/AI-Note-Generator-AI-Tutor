@@ -1,6 +1,6 @@
 import chromadb
 import ollama
-from rag.prompt_templates import PROMPTS
+from prompt_templates import PROMPTS
 
 # -----------------------------
 # ChromaDB Connection
@@ -41,13 +41,14 @@ def retrieve_chunks(file_id,module_name):
 # -----------------------------
 
 def grounding_check(chunks):
+    keywords = ["routing", "network", "algorithm"]
 
-    total_chars = sum(len(chunk) for chunk in chunks)
+    score = 0
+    for chunk in chunks:
+        if any(k in chunk.lower() for k in keywords):
+            score += 1
 
-    if len(chunks) < 2:
-        return True
-
-    if total_chars < 200:
+    if score < 2:
         return True
 
     return False
@@ -119,9 +120,9 @@ def generate_notes(file_id,module_name, note_type):
 if __name__ == "__main__":
 
     result = generate_notes(
-        "syllabus_001",
-        "module 4",
-        "detailed"
+    "syllabus_001",
+    "Module 4",
+    "detailed"
     )
 
     print("\nWARNING:")
