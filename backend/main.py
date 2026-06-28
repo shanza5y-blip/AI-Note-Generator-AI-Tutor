@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import List, Literal
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -8,6 +8,7 @@ from backend.parser import extract_pdf_text, parse_syllabus
 from datetime import datetime
 from rag.ingest import ingest_file
 from rag.note_generator import generate_notes
+from rag.tutor import tutor_chat
 import asyncio
 import sqlite3
 import os
@@ -34,14 +35,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import os
-DB_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.db")
+DB_NAME = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "database.db")
+
+
+def create_chat_table():
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS chat_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            message TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(file_id) REFERENCES files(id)
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+create_chat_table()
 
 
 class GenerateNotesRequest(BaseModel):
     file_id: int
     module_name: str
     note_type: Literal["detailed", "exam", "revision"]
+
+
+class ChatHistory(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    file_id: int
+    subject: str
+    message: str
+    history: List[ChatHistory] = []
 
 
 @app.get("/health")
@@ -268,3 +305,80 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
         "warning": result["warning"],
         "generated_at": generated_at
     }
+
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Validate file_id
+    cursor.execute(
+        "SELECT id FROM files WHERE id=?",
+        (request.file_id,)
+    )
+
+    if cursor.fetchone() is None:
+        conn.close()
+        raise HTTPException(
+            status_code=404,
+            detail="File not found"
+        )
+
+    # Validate message
+    if not request.message.strip():
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty"
+        )
+
+    try:
+        # Call Intern 2's tutor function
+        result = await asyncio.to_thread(
+            tutor_chat,
+            request.file_id,
+            request.subject,
+            request.message,
+            [h.model_dump() for h in request.history]
+        )
+
+        # Save chat to database
+        cursor.execute(
+            """
+            INSERT INTO chat_log
+            (
+                file_id,
+                subject,
+                message,
+                answer
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                request.file_id,
+                request.subject,
+                request.message,
+                result["answer"]
+            )
+        )
+
+        conn.commit()
+
+        return {
+            "answer": result["answer"],
+            "sources": result["sources"]
+        }
+
+    except Exception as e:
+
+        conn.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Chat failed: {str(e)}"
+        )
+
+    finally:
+        conn.close()
