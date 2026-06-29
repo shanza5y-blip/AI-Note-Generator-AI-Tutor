@@ -1,6 +1,7 @@
 import chromadb
 from sentence_transformers import SentenceTransformer
 import hashlib
+import uuid
 
 # -----------------------------
 # ChromaDB Setup
@@ -74,19 +75,34 @@ def embed_and_store(
 # -----------------------------
 
 def add_documents(texts, metadatas, collection_name=None):
-    """
-    Wrapper for ingest.py
-    """
 
-    if not metadatas:
+    if not texts:
         return
 
-    embed_and_store(
-        chunks=texts,
-        file_id=metadatas[0]["file_id"],
-        subject=metadatas[0].get("subject", "unknown"),
-        module_name=metadatas[0].get("module_name", "unknown")
+    print("\n[INFO] Embedding chunks...")
+
+    embeddings = model.encode(texts)
+
+    ids = []
+
+    for i, (text, metadata) in enumerate(zip(texts, metadatas)):
+        ids.append(
+            create_id(
+                metadata["file_id"],
+                metadata["module_name"],
+                text,
+                i
+            )
+        )
+
+    collection.upsert(
+        ids=ids,
+        documents=texts,
+        embeddings=embeddings.tolist(),
+        metadatas=metadatas
     )
+
+    print(f"[SUCCESS] Stored {len(texts)} chunks")
 
 # -----------------------------
 # Embedding Helper
@@ -132,5 +148,15 @@ def debug_collection():
 
     print(sample)
 if __name__ == "__main__":
+
     print("Total chunks:", collection.count())
-    print(collection.get())
+
+    data = collection.get()
+
+    print("\n========== METADATA ==========")
+    for meta in data["metadatas"]:
+        print(meta)
+
+    print("\n========== DOCUMENTS ==========")
+    for doc in data["documents"]:
+        print(doc[:100])

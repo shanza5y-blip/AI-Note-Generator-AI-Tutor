@@ -10,51 +10,69 @@ client = chromadb.PersistentClient(
     path="./chroma_db"
 )
 
-collection = client.get_collection(
-    "notes_chunks"
-)
+collection = client.get_collection("notes_chunks")
+
 
 # -----------------------------
 # Retrieve Chunks
 # -----------------------------
 
-def retrieve_chunks(file_id,module_name):
+def retrieve_chunks(file_id, module_name):
 
     try:
-        results = collection.query(
-            query_texts=["Generate notes"],
-            n_results=5,
-            where={"$and": [
-            {"file_id": file_id},
-            {"module_name": module_name}]}
+        print("\n===== RETRIEVING =====")
+        print("file_id:", file_id, type(file_id))
+        print("module_name:", module_name)
+
+        results = collection.get(
+            where={
+                "$and": [
+                    {"file_id": file_id},
+                    {"module_name": module_name}
+                ]
+            },
+            include=["documents", "metadatas"]
         )
 
-        docs = results.get("documents", [[]])[0]
-        return docs[:5]
+        docs = results.get("documents", [])
+
+        print("\nRetrieved Documents:", len(docs))
+
+        if docs:
+            print("\nMetadata:")
+            for meta in results["metadatas"]:
+                print(meta)
+
+        return docs
 
     except Exception as e:
         print("Retrieval Error:", e)
         return []
+
 
 # -----------------------------
 # Grounding Check
 # -----------------------------
 
 def grounding_check(chunks):
-    keywords = ["routing", "network", "algorithm"]
+
+    keywords = [
+        "routing",
+        "network",
+        "algorithm"
+    ]
 
     score = 0
+
     for chunk in chunks:
         if any(k in chunk.lower() for k in keywords):
             score += 1
 
-    if score < 2:
-        return True
+    return score < 2
 
-    return False
 
 # -----------------------------
-# Ollama Call
+# Ollama
 # -----------------------------
 
 def call_ollama(prompt):
@@ -71,19 +89,19 @@ def call_ollama(prompt):
 
     return response["message"]["content"]
 
+
 # -----------------------------
-# Generate Notes (FIXED)
+# Generate Notes
 # -----------------------------
 
-def generate_notes(file_id,module_name, note_type):
+def generate_notes(file_id, module_name, note_type):
 
-    print("\n[STEP] Retrieving chunks...")
+    print("\n==============================")
+    print("Generating Notes")
+    print("==============================")
 
-    chunks = retrieve_chunks(file_id,module_name)
+    chunks = retrieve_chunks(file_id, module_name)
 
-    print("Retrieved Chunks:", len(chunks))
-
-    # No chunks found
     if len(chunks) == 0:
         return {
             "content": "",
@@ -92,14 +110,13 @@ def generate_notes(file_id,module_name, note_type):
 
     context = "\n\n".join(chunks)
 
-    print("[STEP] Building prompt...")
+    print("\n===== CONTEXT =====")
+    print(context[:1000])
 
     prompt = PROMPTS["detailed explanation"].format(
         module_name=module_name,
         context=context
     )
-
-    print("[STEP] Calling LLM...")
 
     notes = call_ollama(prompt)
 
@@ -113,20 +130,17 @@ def generate_notes(file_id,module_name, note_type):
 
     return result
 
+
 # -----------------------------
-# Direct Test
+# Test
 # -----------------------------
 
 if __name__ == "__main__":
 
     result = generate_notes(
-    "syllabus_001",
-    "Module 4",
-    "detailed"
+        1,
+        "Module 2",
+        "detailed"
     )
 
-    print("\nWARNING:")
-    print(result["warning"])
-
-    print("\nCONTENT:")
-    print(result["content"])
+    print(result)
