@@ -33,6 +33,15 @@ CREATE TABLE IF NOT EXISTS subjects (
         REFERENCES files(id)
         ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS modules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subject_id INTEGER NOT NULL,
+    module_name TEXT NOT NULL,
+
+    FOREIGN KEY (subject_id)
+        REFERENCES subjects(id)
+        ON DELETE CASCADE
+);
 
 
 -- =====================================================

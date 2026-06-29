@@ -44,17 +44,19 @@ def parse_syllabus(text):
 
     modules = []
 
-    
-
     module_pattern = (
-        r"(?m)^([1-4])\s+(.+?)(?=\n[1-4]\s+|\Z)"
+        r"(?ms)^\s*([1-4])\s+(.+?)(?=^\s*[1-4]\s+|\Z)"
     )
 
     matches = re.findall(
         module_pattern,
         syllabus_text,
-        re.DOTALL
+        re.MULTILINE | re.DOTALL
     )
+    print("Modules found:", len(matches))
+
+    for m in matches:
+        print(m[0], "->", m[1][:80])
 
     for module_no, content in matches:
 
@@ -69,4 +71,3 @@ def parse_syllabus(text):
         "subject": subject,
         "modules": modules
     }
-
