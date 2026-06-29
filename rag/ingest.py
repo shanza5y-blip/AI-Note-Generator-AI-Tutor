@@ -26,7 +26,9 @@ def ingest_file(file_id, parsed_structure):
                 "module_name": module_name,
                 "topic": topic
             })
-
+    print("\n===== METADATA =====")
+    for m in all_metadatas:
+        print(m)
     add_documents(
         texts=all_texts,
         metadatas=all_metadatas,
