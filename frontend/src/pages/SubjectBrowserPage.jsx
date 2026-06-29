@@ -1,11 +1,50 @@
-import React, { useMemo, useState } from "react";
-import subjects from "../data/dummySubjects";
 
-const SubjectBrowserPage = ({ onSelect }) => {
+import React, { useMemo, useState, useEffect } from "react";
+
+const SubjectBrowserPage = ({ fileId, onSelect }) => {
   const [search, setSearch] = useState("");
-  const [selectedSemester, setSelectedSemester] =
-    useState("All");
+  const [selectedSemester, setSelectedSemester] = useState("All");
+  const [subjects, setSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (!fileId) return;
+
+    const fetchSubjects = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/subjects/${fileId}`
+        );
+
+        const data = await response.json();
+
+        console.log(data);
+
+        if (data.data) {
+          setSubjects([
+            {
+              id: fileId,
+              name: data.data.subject,
+              code: "",
+              semester: "",
+              credits: "",
+              units: data.data.units.map(
+                unit => unit.unit_name
+              )
+            }
+          ]);
+        }
+
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSubjects();
+
+  }, [fileId]);
   const semesters = [
     "All",
     ...new Set(
@@ -16,12 +55,12 @@ const SubjectBrowserPage = ({ onSelect }) => {
   const filteredSubjects = useMemo(() => {
     return subjects.filter((subject) => {
       const matchesSearch =
-  (subject.name || "")
-    .toLowerCase()
-    .includes(search.toLowerCase()) ||
-  (subject.code || "")
-    .toLowerCase()
-    .includes(search.toLowerCase());
+        (subject.name || "")
+          .toLowerCase()
+          .includes(search.toLowerCase()) ||
+        (subject.code || "")
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
       const matchesSemester =
         selectedSemester === "All"
@@ -33,8 +72,10 @@ const SubjectBrowserPage = ({ onSelect }) => {
         matchesSemester
       );
     });
-  }, [search, selectedSemester]);
-
+  }, [subjects, search, selectedSemester]);
+  if (loading) {
+    return <h2>Loading subjects...</h2>;
+  }
   return (
     <div className="subject-browser-page">
 
