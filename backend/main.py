@@ -8,7 +8,7 @@ from backend.parser import extract_pdf_text, parse_syllabus
 from datetime import datetime
 from rag.ingest import ingest_file
 from rag.note_generator import generate_notes
-from rag.tutor import tutor_chat
+from rag.tutor_chat import tutor_chat
 import asyncio
 import sqlite3
 import os
@@ -41,7 +41,7 @@ DB_NAME = os.path.join(os.path.dirname(
 
 def create_chat_table():
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -104,7 +104,7 @@ async def upload_notes(file: UploadFile = File(...)):
         "uploads",
         file.filename
     )
-
+    conn = None
     try:
 
         # Save PDF
@@ -119,7 +119,7 @@ async def upload_notes(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(content)
 
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_NAME, timeout=30)
         cursor = conn.cursor()
 
         cursor.execute(
@@ -184,7 +184,7 @@ async def upload_notes(file: UploadFile = File(...)):
         for module in parsed_data["modules"]:
             cursor.execute(
                 """
-                INSERT INTO units(subject_id, unit_name)
+                INSERT INTO modules(subject_id, module_name)
                 VALUES (?, ?)
                 """,
                 (
@@ -210,6 +210,8 @@ async def upload_notes(file: UploadFile = File(...)):
         )
 
         conn.commit()
+        conn.close()
+        conn = None
         asyncio.create_task(
             asyncio.to_thread(
                 ingest_file,
@@ -217,7 +219,7 @@ async def upload_notes(file: UploadFile = File(...)):
                 parsed_data
             )
         )
-        conn.close()
+        
 
         return {
             "file_id": file_id,
@@ -235,17 +237,23 @@ async def upload_notes(file: UploadFile = File(...)):
         raise
 
     except Exception as e:
+        if conn:
+            conn.rollback()
 
         raise HTTPException(
             status_code=400,
             detail=f"PDF processing failed: {str(e)}"
         )
 
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.post("/generate-notes")
 async def generate_notes_endpoint(request: GenerateNotesRequest):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     cursor = conn.cursor()
 
     # Check file exists
@@ -310,7 +318,7 @@ async def generate_notes_endpoint(request: GenerateNotesRequest):
 @app.post("/chat")
 async def chat(request: ChatRequest):
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     cursor = conn.cursor()
 
     # Validate file_id
