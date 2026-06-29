@@ -21,14 +21,16 @@ const NOTE_TYPES = [
   }
 ];
 
-const UploadPage = ({ onViewNotes }) => {
+const UploadPage = ({
+  onUpload,
+  onViewNotes,
+}) => {
   const fileRef = useRef();
 
   const [file, setFile] = useState(null);
 
-  const [unit, setUnit] = useState("");
-  const [chapter, setChapter] = useState("");
   const [module, setModule] = useState("");
+  const [modules] = useState([]);
 
   const [noteType, setNoteType] =
     useState("detailed");
@@ -63,7 +65,7 @@ const UploadPage = ({ onViewNotes }) => {
     );
 
     const uploadData = await uploadResponse.json();
-
+    console.log("Upload Response:", uploadData);
     if (!uploadResponse.ok) {
       alert("Upload failed: " + uploadData.detail);
       setLoading(false);
@@ -73,7 +75,14 @@ const UploadPage = ({ onViewNotes }) => {
     const file_id = uploadData.file_id;
     const subject = uploadData.subject;
     const modules = uploadData.modules;
-
+    console.log("Upload API Response:", uploadData);
+console.log("file_id:", file_id);
+console.log("subject:", subject);
+console.log("modules:", modules);
+    if (onUpload) {
+  onUpload(file, file_id, subject, modules);
+}
+console.log("Calling onUpload with:", file_id);
     // Step 2 — Generate notes
     const notesResponse = await fetch(
       "http://localhost:8000/generate-notes",
@@ -195,29 +204,25 @@ const UploadPage = ({ onViewNotes }) => {
           </div>
 
           <div className="scope-grid">
-            <input
-              placeholder="Unit"
-              value={unit}
-              onChange={(e) =>
-                setUnit(e.target.value)
-              }
-            />
-
-            <input
-              placeholder="Chapter"
-              value={chapter}
-              onChange={(e) =>
-                setChapter(e.target.value)
-              }
-            />
-
-            <input
-              placeholder="Module"
+            
+            <select
               value={module}
-              onChange={(e) =>
-                setModule(e.target.value)
-              }
-            />
+              onChange={(e) => setModule(e.target.value)}
+            >
+            <option value="">
+            Select Module
+            </option>
+
+            {modules.map((moduleName) => (
+            <option
+            key={moduleName}
+            value={moduleName}
+          >
+            {moduleName}
+          </option>
+          ))}
+          </select>
+
           </div>
         </div>
 
