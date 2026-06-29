@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 import LoginPage from "./pages/LoginPage";
 import UploadPage from "./pages/UploadPage";
-import SubjectBrowserPage from "./pages/SubjectBrowserPage";
+//import SubjectBrowserPage from "./pages/SubjectBrowserPage";
 import NoteViewerPage from "./pages/NoteViewerPage";
 import TutorChatPage from "./pages/TutorChatPage";
 
@@ -22,11 +21,26 @@ function App() {
     setPage("upload");
   };
 
-  const handleUpload = (file, fileIdFromBackend) => {
-    setUploadedFile(file);
-    setFileId(fileIdFromBackend);
-    setPage("subjects");
-  };
+  const handleUpload = (
+  file,
+  fileIdFromBackend,
+  subject,
+  modules
+) => {
+  console.log("handleUpload received:", fileIdFromBackend);
+  console.log("App received fileId:", fileIdFromBackend);
+  setUploadedFile(file);
+
+  setFileId(fileIdFromBackend);
+
+  setSelectedSubject({
+    id: fileIdFromBackend,
+    name: subject,
+    units: modules,
+  });
+
+  setPage("notes");
+};
 
   const handleSubjectSelect = (subject) => {
     setSelectedSubject(subject);
@@ -61,16 +75,16 @@ function App() {
             Upload
           </button>
 
-          <button
+          {/* <button
             className={
-              page === "subjects"
-                ? "nav-btn active"
-                : "nav-btn"
-            }
-            onClick={() => setPage("subjects")}
+            page === "subjects"
+            ? "nav-btn active"
+            : "nav-btn"
+         }
+          onClick={() => setPage("subjects")}
           >
-            Subjects
-          </button>
+         Subjects
+        </button> */}
 
           <button
             className={
@@ -118,12 +132,12 @@ function App() {
       )}
 
       {/* Subject Browser */}
-      {page === "subjects" && (
+      {/*{page === "subjects" && (
         <SubjectBrowserPage
           fileId={fileId}
           onSelect={handleSubjectSelect}
         />
-      )}
+      )}*/}
 
       {/* Note Viewer */}
       {page === "notes" && (
@@ -136,8 +150,10 @@ function App() {
       {/* Tutor Chat */}
       {page === "chat" && (
         <TutorChatPage
-          onOpenNotes={goToNotes}
-        />
+    fileId={fileId}
+    selectedSubject={selectedSubject}
+    onOpenNotes={goToNotes}
+/>
       )}
 
     </div>
