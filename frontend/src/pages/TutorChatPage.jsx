@@ -1,17 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
-import Message from "../pages/Message";
-import {
-  HISTORY,
-  INITIAL_MESSAGES,
-  BOT_REPLIES,
-  QUICK_REPLIES,
-} from "../data/chatData";
+import Message from "./Message";
+import { QUICK_REPLIES } from "../data/chatData";
 
-const TutorChatPage = ({ onOpenNoteViewer }) => {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+const TutorChatPage = ({
+  fileId,
+  selectedSubject,
+  onOpenNotes,
+}) => {
+
+  const [messages, setMessages] = useState([]);
+  const [chatHistory, setChatHistory] = useState([]);
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [typing, setTyping] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const scrollRef = useRef(null);
 
@@ -22,217 +25,408 @@ const TutorChatPage = ({ onOpenNoteViewer }) => {
     }
   }, [messages, typing]);
 
-  const getCurrentTime = () => {
-    return new Date().toLocaleTimeString([], {
-      hour: "numeric",
+  useEffect(() => {
+    localStorage.setItem(
+      "noteai_chat_history",
+      JSON.stringify(chatHistory)
+    );
+  }, [chatHistory]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(
+      "noteai_chat_history"
+    );
+
+    if (saved) {
+      setChatHistory(JSON.parse(saved));
+    }
+  }, []);
+
+  const getCurrentTime = () =>
+    new Date().toLocaleTimeString([], {
+      hour: "2-digit",
       minute: "2-digit",
     });
+
+  const loadConversation = (chat) => {
+    setMessages(chat.messages);
+
+    setChatHistory((prev) =>
+      prev.map((c) => ({
+        ...c,
+        active: c.id === chat.id,
+      }))
+    );
   };
 
-  const sendMessage = (text) => {
-    const message = (text || input).trim();
+  const startNewChat = () => {
+    if (messages.length > 0) {
 
-    if (!message) return;
+      const firstQuestion =
+        messages.find(
+          (m) => m.from === "user"
+        );
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        from: "user",
-        text: message,
-        time: getCurrentTime(),
-      },
-    ]);
+      setChatHistory((prev) => [
+        {
+          id: Date.now(),
+          title:
+            firstQuestion?.text || "New Chat",
+          preview:
+            messages[messages.length - 1]
+              ?.text.slice(0, 60) + "...",
+          messages: [...messages],
+          active: true,
+        },
+        ...prev,
+      ]);
+    }
+
+    setMessages([]);
+    setInput("");
+    setError("");
+  };
+
+  const clearHistory = () => {
+    if (
+      window.confirm(
+        "Delete all chat history?"
+      )
+    ) {
+      setChatHistory([]);
+      localStorage.removeItem(
+        "noteai_chat_history"
+      );
+    }
+  };
+
+  const sendMessage = async (
+    customMessage = ""
+  ) => {
+
+    if (!fileId) {
+      alert(
+        "Please upload a syllabus first."
+      );
+      return;
+    }
+
+    const question =
+      (customMessage || input).trim();
+
+    if (!question) return;
+
+    const userMessage = {
+      from: "user",
+      text: question,
+      time: getCurrentTime(),
+    };
+
+    const updatedMessages = [
+      ...messages,
+      userMessage,
+    ];
+
+    setMessages(updatedMessages);
 
     setInput("");
     setTyping(true);
+    setLoading(true);
+    setError("");
 
-    setTimeout(() => {
-      const randomReply =
-        BOT_REPLIES[
-          Math.floor(
-            Math.random() * BOT_REPLIES.length
-          )
-        ];
+    try {
 
-      setTyping(false);
+      console.log({
+        file_id: fileId,
+        subject:
+          selectedSubject?.name ||
+          "Uploaded Subject",
+        message: question,
+      });
+
+      const response = await fetch(
+        "http://localhost:8000/chat",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+  file_id: fileId,
+
+  subject:
+    selectedSubject?.name ||
+    "Uploaded Subject",
+
+  message: question,
+
+  history: updatedMessages.map((msg) => ({
+    role: msg.from === "user"
+      ? "user"
+      : "assistant",
+
+    content: msg.text,
+  })),
+}),
+        }
+      );
+
+      let data = {};
+
+try {
+  data = await response.json();
+} catch {
+  data = {};
+}
+
+      if (!response.ok) {
+        throw new Error(
+          JSON.stringify(data)
+        );
+      }
+
+      const botMessage = {
+        from: "bot",
+        text: data.answer,
+        time: getCurrentTime(),
+        sources: data.sources || [],
+      };
+
+      const finalMessages = [...updatedMessages, botMessage];
+
+setMessages(finalMessages);
+
+setChatHistory((prev) => {
+  const activeChat = prev.find((chat) => chat.active);
+
+  if (activeChat) {
+    return prev.map((chat) =>
+      chat.active
+        ? {
+            ...chat,
+            messages: finalMessages,
+            preview: botMessage.text.slice(0, 60) + "...",
+          }
+        : chat
+    );
+  }
+
+  const firstQuestion = finalMessages.find(
+    (m) => m.from === "user"
+  );
+
+  return [
+    {
+      id: Date.now(),
+      title: firstQuestion?.text || "New Chat",
+      preview: botMessage.text.slice(0, 60) + "...",
+      messages: finalMessages,
+      active: true,
+    },
+    ...prev,
+  ];
+});
+
+    } catch (err) {
+
+      console.error(err);
+
+      setError(
+        "Unable to reach the AI Tutor."
+      );
 
       setMessages((prev) => [
         ...prev,
         {
           from: "bot",
-          text: randomReply,
+          text: "Unable to reach the AI Tutor.",
           time: getCurrentTime(),
         },
       ]);
-    }, 1200);
+
+    } finally {
+
+      setTyping(false);
+      setLoading(false);
+
+    }
   };
 
   return (
+
     <div className="tutor-page">
-      {/* =========================
-          SIDEBAR
-      ========================= */}
 
       <div
         className={`tutor-sidebar ${
-          sidebarOpen ? "open" : "closed"
+          sidebarOpen
+            ? "open"
+            : "closed"
         }`}
       >
-        {/* Logo */}
 
         <div className="sidebar-header">
+
           <div className="sidebar-logo">
-            <div className="logo-box">✦</div>
+            <div className="logo-box">
+              ✦
+            </div>
+
             <span>NoteAI</span>
           </div>
 
           <button
             className="new-chat-btn"
-            onClick={() =>
-              setMessages(INITIAL_MESSAGES)
-            }
+            onClick={startNewChat}
           >
             + New Chat
           </button>
+
+          <button
+            className="clear-history-btn"
+            onClick={clearHistory}
+          >
+            🗑 Clear History
+          </button>
+
         </div>
-
-        {/* Search */}
-
-        <div className="sidebar-search">
-          <input
-            type="text"
-            placeholder="Search chats..."
-          />
-        </div>
-
-        {/* History */}
 
         <div className="sidebar-history">
-          {Object.entries(HISTORY).map(
-            ([section, items]) => (
-              <div
-                key={section}
-                className="history-section"
+
+          {chatHistory.length === 0 ? (
+
+            <p
+              style={{
+                padding: 20,
+                color: "#777",
+              }}
+            >
+              No conversations yet
+            </p>
+
+          ) : (
+
+            chatHistory.map((chat) => (
+
+              <button
+                key={chat.id}
+                className={`history-item ${
+                  chat.active
+                    ? "active"
+                    : ""
+                }`}
+                onClick={() =>
+                  loadConversation(chat)
+                }
               >
-                <h4>{section}</h4>
 
-                {items.map((chat) => (
-                  <button
-                    key={chat.id}
-                    className={`history-item ${
-                      chat.active
-                        ? "active"
-                        : ""
-                    }`}
-                  >
-                    <div className="history-title">
-                      {chat.title}
-                    </div>
+                <div className="history-title">
+                  {chat.title}
+                </div>
 
-                    <div className="history-preview">
-                      {chat.preview}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )
+                <div className="history-preview">
+                  {chat.preview}
+                </div>
+
+              </button>
+
+            ))
+
           )}
+
         </div>
 
-        {/* Profile */}
-
-        <div className="sidebar-profile">
-          <div className="profile-avatar">
-            U
-          </div>
-
-          <div className="profile-info">
-            <h5>Student</h5>
-            <p>Free Plan</p>
-          </div>
-        </div>
       </div>
 
-      {/* =========================
-          MAIN CHAT AREA
-      ========================= */}
-
       <div className="chat-main">
-        {/* Header */}
 
         <div className="chat-header">
+
           <button
             className="menu-btn"
             onClick={() =>
-              setSidebarOpen(!sidebarOpen)
+              setSidebarOpen(
+                !sidebarOpen
+              )
             }
           >
             ☰
           </button>
 
           <div className="chat-header-info">
+
             <div className="chat-bot-icon">
               ✦
             </div>
 
             <div>
               <h3>NoteAI Tutor</h3>
-              <p>Online • Ready to help</p>
             </div>
+
           </div>
 
-          <div className="chat-header-actions">
-            <button
-              className="save-notes-btn"
-              onClick={() => {
-                if (onOpenNoteViewer) {
-                  onOpenNoteViewer();
-                }
-              }}
-            >
-              Save as Notes
-            </button>
-          </div>
+          <button
+            className="save-notes-btn"
+            onClick={onOpenNotes}
+          >
+            Save as Notes
+          </button>
+
         </div>
 
-        {/* Messages */}
+        {error && (
+          <div className="error-box">
+            {error}
+          </div>
+        )}
 
         <div
           className="chat-messages"
           ref={scrollRef}
         >
-          {messages.map(
-            (message, index) => (
+
+          {messages.length === 0 ? (
+
+            <div
+              style={{
+                textAlign: "center",
+                marginTop: 80,
+              }}
+            >
+              <h2>
+                Welcome to NoteAI Tutor 👋
+              </h2>
+
+              <p>
+                Ask anything about your uploaded syllabus.
+              </p>
+            </div>
+
+          ) : (
+
+            messages.map((message, index) => (
               <Message
                 key={index}
                 message={message}
               />
-            )
-          )}
+            ))
 
-          {/* Typing */}
+          )}
 
           {typing && (
-            <div className="chat-message">
-              <div className="chat-avatar">
-                <div className="bot-avatar">
-                  ✦
-                </div>
-              </div>
-
-              <div className="typing-bubble">
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-                <span className="typing-dot"></span>
-              </div>
+            <div className="typing-bubble">
+              Thinking...
             </div>
           )}
+
         </div>
 
-        {/* Quick Replies */}
-
         <div className="quick-replies">
+
           {QUICK_REPLIES.map((reply) => (
+
             <button
               key={reply}
               className="quick-reply-btn"
@@ -242,21 +436,23 @@ const TutorChatPage = ({ onOpenNoteViewer }) => {
             >
               {reply}
             </button>
+
           ))}
+
         </div>
 
-        {/* Input */}
-
         <div className="chat-input-container">
+
           <div className="chat-input-box">
+
             <textarea
+              className="chat-input"
               value={input}
+              rows={1}
+              placeholder="Ask anything..."
               onChange={(e) =>
                 setInput(e.target.value)
               }
-              placeholder="Ask your tutor anything..."
-              rows="1"
-              className="chat-input"
               onKeyDown={(e) => {
                 if (
                   e.key === "Enter" &&
@@ -270,22 +466,27 @@ const TutorChatPage = ({ onOpenNoteViewer }) => {
 
             <button
               className="send-btn"
+              disabled={
+                loading ||
+                !input.trim()
+              }
               onClick={() =>
                 sendMessage()
               }
-              disabled={!input.trim()}
             >
-              ➤
+              {loading
+                ? "..."
+                : "➤"}
             </button>
+
           </div>
 
-          <p className="chat-footer-text">
-            NoteAI Tutor can make mistakes.
-            Verify important information.
-          </p>
         </div>
+
       </div>
+
     </div>
+
   );
 };
 
