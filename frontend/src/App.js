@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-
+import React, { useState, useEffect } from "react";
 import LoginPage from "./pages/LoginPage";
 import UploadPage from "./pages/UploadPage";
-import SubjectBrowserPage from "./pages/SubjectBrowserPage";
+//import SubjectBrowserPage from "./pages/SubjectBrowserPage";
 import NoteViewerPage from "./pages/NoteViewerPage";
 import TutorChatPage from "./pages/TutorChatPage";
 
@@ -11,49 +10,41 @@ import "./App.css";
 function App() {
   const [page, setPage] = useState("login");
 
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedFile, setUploadedFile] =
+    useState(null);
 
   const [selectedSubject, setSelectedSubject] =
     useState(null);
-
-  const [generatedNotes, setGeneratedNotes] =
-    useState(null);
+  const [fileId, setFileId] = useState(null);
 
   const handleLogin = () => {
     setPage("upload");
   };
 
-  const handleUpload = (fileData) => {
-    setUploadedFile(fileData);
-    setPage("subjects");
-  };
+  const handleUpload = (
+  file,
+  fileIdFromBackend,
+  subject,
+  modules
+) => {
+  console.log("handleUpload received:", fileIdFromBackend);
+  console.log("App received fileId:", fileIdFromBackend);
+  setUploadedFile(file);
+
+  setFileId(fileIdFromBackend);
+
+  setSelectedSubject({
+    id: fileIdFromBackend,
+    name: subject,
+    units: modules,
+  });
+
+  setPage("notes");
+};
 
   const handleSubjectSelect = (subject) => {
     setSelectedSubject(subject);
-
-    const notes = {
-      title: `${subject.name} Notes`,
-      date: new Date().toLocaleDateString(),
-
-      overview:
-        "Based on the uploaded syllabus, these notes summarize the selected subject and key concepts.",
-
-      keyPoints: [
-        "Core concepts explained clearly",
-        "Important exam-oriented topics",
-        "Definitions and terminology",
-        "Examples and practical applications",
-        "Revision-friendly summary",
-      ],
-    };
-
-    setGeneratedNotes(notes);
-
     setPage("notes");
-  };
-
-  const goToChat = () => {
-    setPage("chat");
   };
 
   const goToNotes = () => {
@@ -63,15 +54,16 @@ function App() {
   const logout = () => {
     setUploadedFile(null);
     setSelectedSubject(null);
-    setGeneratedNotes(null);
     setPage("login");
   };
 
   return (
     <div className="app-container">
+
       {/* Floating Navigation */}
       {page !== "login" && (
         <div className="floating-nav">
+
           <button
             className={
               page === "upload"
@@ -83,16 +75,16 @@ function App() {
             Upload
           </button>
 
-          <button
+          {/* <button
             className={
-              page === "subjects"
-                ? "nav-btn active"
-                : "nav-btn"
-            }
-            onClick={() => setPage("subjects")}
+            page === "subjects"
+            ? "nav-btn active"
+            : "nav-btn"
+         }
+          onClick={() => setPage("subjects")}
           >
-            Subjects
-          </button>
+         Subjects
+        </button> */}
 
           <button
             className={
@@ -122,15 +114,16 @@ function App() {
           >
             Logout
           </button>
+
         </div>
       )}
 
-      {/* Login */}
+      {/* Login Page */}
       {page === "login" && (
         <LoginPage onLogin={handleLogin} />
       )}
 
-      {/* Upload */}
+      {/* Upload Page */}
       {page === "upload" && (
         <UploadPage
           uploadedFile={uploadedFile}
@@ -139,28 +132,30 @@ function App() {
       )}
 
       {/* Subject Browser */}
-      {page === "subjects" && (
+      {/*{page === "subjects" && (
         <SubjectBrowserPage
+          fileId={fileId}
           onSelect={handleSubjectSelect}
         />
-      )}
+      )}*/}
 
-      {/* Notes Viewer */}
+      {/* Note Viewer */}
       {page === "notes" && (
         <NoteViewerPage
-          notes={generatedNotes}
-          uploadedFile={uploadedFile}
+          fileId={fileId}
           selectedSubject={selectedSubject}
-          onOpenChat={goToChat}
         />
       )}
 
       {/* Tutor Chat */}
       {page === "chat" && (
         <TutorChatPage
-          onOpenNotes={goToNotes}
-        />
+    fileId={fileId}
+    selectedSubject={selectedSubject}
+    onOpenNotes={goToNotes}
+/>
       )}
+
     </div>
   );
 }
