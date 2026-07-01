@@ -1,0 +1,52 @@
+Course Title: Introduction to Artificial Intelligence
+
+Course Description
+This course introduces the fundamental concepts of artificial intelligence. Students will study intelligent agents, search algorithms, machine learning, neural networks, natural language processing, vector databases, retrieval augmented generation, and prompt engineering.
+
+Course Objectives
+The objective of this course is to help students understand the foundations of AI and build practical AI applications. Students will learn how machine learning models are trained, how embeddings work, and how retrieval systems improve the accuracy of language models.
+
+Unit 1: Introduction to Artificial Intelligence
+Topics include the history of AI, intelligent agents, problem solving, search algorithms, and knowledge representation. Students will learn how AI systems make decisions and solve problems.
+
+Unit 2: Machine Learning Fundamentals
+Topics include supervised learning, unsupervised learning, classification, regression, model evaluation, and feature engineering. Students will build simple machine learning models and evaluate their performance.
+
+Unit 3: Neural Networks and Deep Learning
+Topics include perceptrons, multilayer neural networks, backpropagation, activation functions, convolutional neural networks, and transformers. Students will learn how modern deep learning systems are trained.
+
+Unit 4: Vector Databases and Embeddings
+Topics include text embeddings, semantic similarity, vector search, indexing strategies, and vector databases such as ChromaDB. Students will learn how embeddings convert text into numerical vectors.
+
+Unit 5: Retrieval Augmented Generation
+Topics include chunking, retrieval pipelines, embedding models, context injection, and retrieval evaluation. Students will learn how RAG systems combine retrieval and generation to improve accuracy.
+
+Unit 6: Prompt Engineering
+Topics include prompt design, few-shot prompting, chain-of-thought prompting, evaluation techniques, and responsible AI usage.
+
+Required Textbook
+Artificial Intelligence: A Modern Approach by Stuart Russell and Peter Norvig.
+
+Evaluation Scheme
+Assignments: 20%
+Quizzes: 10%
+Midterm Examination: 30%
+Final Examination: 40%
+
+Learning Outcomes
+By the end of the course students will:
+1. Understand core AI concepts.
+2. Build machine learning models.
+3. Use embeddings and vector databases.
+4. Develop retrieval augmented generation systems.
+5. Evaluate retrieval quality.
+6. Design effective prompts.
+
+Project Requirement
+Students must develop a Retrieval Augmented Generation application using ChromaDB and an open-source large language model. The project should ingest PDF documents, create embeddings, store vectors, retrieve relevant chunks, and generate answers.
+
+Academic Integrity
+Students must submit original work. Any plagiarism or unauthorized use of AI-generated content without attribution may result in disciplinary action.
+
+Office Hours
+Office hours are held every Tuesday from 2 PM to 4 PM and Thursday from 10 AM to 12 PM.

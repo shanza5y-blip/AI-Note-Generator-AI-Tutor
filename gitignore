@@ -1,0 +1,90 @@
+# ============================================
+# AI Note Generator + AI Tutor — .gitignore
+# ============================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ---- Virtual Environments ----
+venv/
+env/
+.env/
+.venv/
+
+# ---- Environment Variables ----
+.env
+.env.local
+.env.*.local
+*.env
+
+# ---- Database Files ----
+*.db
+*.sqlite
+*.sqlite3
+# Keep schema.sql (that's source code)
+!schema.sql
+
+# ---- ChromaDB / Vector Store Data ----
+# Never commit vector store data — it's generated at runtime
+chroma_db/
+chroma_data/
+*.chroma
+
+# ---- Uploaded Files ----
+# Test PDFs and text files should not be in the repo
+uploads/
+*.pdf
+*.txt
+# Exception: keep requirements.txt and prompt text files
+!requirements.txt
+!prompt_templates.py
+
+# ---- Debug & Scratch Files ----
+debug.txt
+debug_*.txt
+test_pdf.py
+r.py
+add_column.py
+check_columns.py
+check_db.py
+scratch.py
+temp
+temp/
+
+# ---- Node / React (Frontend) ----
+node_modules/
+frontend/build/
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- IDE / Editor ----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- Test Artifacts ----
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
